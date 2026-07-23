@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>California Partnerships Map</title>
+
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <style>
+      :root {
+        --sidebar-width: 420px;
+        --gap: 12px;
+        --bg: #ffffff;
+        --card-bg: #f8f9fb;
+        --text: #0f172a;
+        --muted: #475569;
+        --border: #e2e8f0;
+        --accent: #0ea5e9;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        color: var(--text);
+        background: var(--bg);
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto,
+          Inter, Arial, sans-serif;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(260px, var(--sidebar-width)) 1fr;
+        grid-template-rows: 100vh;
+        gap: var(--gap);
+        padding: var(--gap);
+      }
+      .sidebar {
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 12px;
+        background: var(--bg);
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+      .sidebar-header {
+        padding: 8px 10px 12px 10px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 10px;
+      }
+      .sidebar h1 {
+        font-size: 18px;
+        margin: 0 0 4px 0;
+      }
+      .sidebar .hint {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .search {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+      }
+      .search input {
+        flex: 1;
+        padding: 8px 10px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        font-size: 14px;
+      }
+      .list {
+        overflow: auto;
+        padding: 6px;
+        display: grid;
+        gap: 10px;
+      }
+      .card {
+        display: grid;
+        grid-template-columns: 88px 1fr;
+        gap: 10px;
+        padding: 10px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: var(--card-bg);
+        cursor: pointer;
+        transition: box-shadow 0.2s ease, transform 0.06s ease;
+      }
+      .card:hover {
+        box-shadow: 0 6px 18px rgba(2, 6, 23, 0.06);
+        transform: translateY(-1px);
+      }
+      .thumb {
+        width: 88px;
+        height: 88px;
+        border-radius: 10px;
+        overflow: hidden;
+        background: #e5e7eb;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--border);
+        position: relative;
+      }
+      .thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .meta h3 {
+        margin: 0 0 6px 0;
+        font-size: 15px;
+        line-height: 1.2;
+      }
+      .meta .story {
+        font-size: 13px;
+        color: var(--muted);
+        line-height: 1.35;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      .meta .address {
+        font-size: 12px;
+        color: #64748b;
+        margin-top: 6px;
+      }
+      .map-wrap {
+        position: relative;
+        min-height: 0;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        overflow: clip;
+      }
+      #map {
+        height: 100%;
+        min-height: calc(100vh - 2 * var(--gap));
+      }
+      .loader {
+        position: absolute;
+        right: 12px;
+        top: 12px;
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 12px;
+        color: var(--muted);
+        display: none;
+        align-items: center;
+        gap: 8px;
+      }
+      .loader.show {
+        display: inline-flex;
+      }
+      .pulse {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: var(--accent);
+        position: relative;
+        animation: pulse 1.2s infinite ease-in-out;
+      }
+      @keyframes pulse {
+        0% {
+          transform: scale(1);
+          opacity: 0.9;
+        }
+        70% {
+          transform: scale(1.6);
+          opacity: 0.2;
+        }
+        100% {
+          transform: scale(1);
+          opacity: 0.9;
+        }
+      }
+      .leaflet-popup-content {
+        margin: 8px 12px;
+        line-height: 1.3;
+      }
+      .popup {
+  max-width: 240px;
+
+        max-width: 280px;
+      }
+      .popup .p-photo {
+        width: 100%;
+        aspect-ratio: 4/3;
+        max-height: 140px;
+        border-radius: 10px;
+        overflow: hidden;
+        background: #e5e7eb;
+        border: 1px solid var(--border);
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .popup .p-photo img,
+      .popup .p-photo iframe {
+        width: 100%;
+        height: 100%;
+        display: block;
+        border: 0;
+        object-fit: cover;
+      }
+      .popup .p-title {
+  font-weight: 600;
+  font-size: 14px;
+  margin: 0 0 6px 0;
+}
+      .popup .p-story {
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--muted);
+}
+      .legend {
+        position: absolute;
+        left: 10px;
+        bottom: 10px;
+        z-index: 400;
+        background: rgba(255, 255, 255, 0.95);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 8px 10px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      @media (max-width: 900px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+        #map {
+          min-height: 60vh;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <h1>Partnerships in California</h1>
+          <div class="hint">
+            Click a card to open its pin. Use the map or the list to explore
+            stories.
+          </div>
+          <div class="search">
+            <input
+              id="searchInput"
+              type="search"
+              placeholder="Filter by partnership, address, or text…"
+            />
+          </div>
+        </div>
+        <div id="list" class="list" role="list"></div>
+      </aside>
+
+      <section class="map-wrap">
+        <div id="map" aria-label="California Partnerships Map"></div>
+        <div id="loader" class="loader">
+          <span class="pulse"></span> Geocoding addresses…
+        </div>
+        <div class="legend">Basemap © OpenStreetMap contributors</div>
+      </section>
+    </div>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+
+    <script>
+      /* ----------------- EDIT DATA HERE ----------------- */
+      const DATA = [
+  /*
+        {
+          partnership:
+            "Name goes here",
+          address: "123 Example St, Oakland, CA 94607",
+          story:
+            "Story text goes here.",
+          photo:
+            "https://drive.google.com/uc?export=view&id=1HiwOg1b6tKxd1MrXoqOqaoJ5HnPe9Nal",
+        },
+*/
+        {
+          partnership:
+            "Oakland Unified School District Expanded Learning Department",
+          address: "1011 Union St, Oakland, CA 94607",
+          story:
+            "Every Oakland student deserves an excellent extended day program—but achieving that vision requires more than good intentions. The Oakland Unified School District Expanded Learning department is addressing this by implementing rigorous continuous quality improvement processes that transform how teams think about quality, moving far beyond basic compliance to create consistently excellent programming across every district site. With Lead by Learning's support, they're building authentic partnerships and using real site-based data to drive meaningful change that puts student experiences at the center. Success means clear improvement processes at both agency and district levels, powered by genuine insights from the ground up. The ultimate goal is simple yet transformative: ensuring every OUSD student can access the high-quality extended learning opportunities they deserve.",
+          photo:
+            "https://drive.google.com/uc?export=view&id=1HiwOg1b6tKxd1MrXoqOqaoJ5HnPe9Nal",
+        },
+        {
+          partnership: "Vallejo City Unified Expanded Learning Department",
+          address: "665 Walnut Ave, Vallejo, CA 94592-1177",
+          story:
+            "What's the secret to transforming after-school programs? It's investing in the people who work directly with students every day. Vallejo City Unified's Expanded Learning team is supporting their Site Coordinators to develop their site staff, discovering that when adults grow professionally, student experiences improve. With Lead by Learning's support, Site Coordinators now set concrete year-long adult learning goals connected to a key quality standard—active and engaged learning—allowing them to go deep with one focus area, track progress, and assess impact. They use real-time data to make immediate program adjustments that keep quality at the center. This data-driven approach empowers Site Coordinators to respond quickly to what staff and students actually need while authentically engaging in continuous improvement. Success means creating programs where students don't just attend—they learn, grow, and thrive.",
+          photo:
+            "https://drive.google.com/file/d/1buKkkRxXOZWvxhAb5xQ8xI7u7qgetZGE/view?usp=sharing",
+        },
+        {
+          partnership: "Alameda Unified School District",
+          address: "2060 Challenger Dr, Alameda, CA 94501",
+          story:
+            "How can we best distribute leadership so that all adults in a system carry the torch of delivering culturally responsive, standards-based instruction to all students? For the past 5 years, Lead by Learning has partnered with the Alameda Unified School District to answer this question. After developing new systemwide structures for collective ownership of district and site goals, this year our partnership is helping Professional Learning Community (PLC) Leaders district-wide improve their teams' ability to learn from focal student data, challenge equity traps, and make aligned instructional decisions. Twice-yearly impact surveys of all teachers in the district, combined with site- and district-level student achievement data disaggregated by student groups, are helping make visible the impact of PLC collaboration on student learning outcomes. Ultimately, Alameda Unified strives for systemwide coherence, where strategic changes in classroom practice are nested inside a collective vision for change, and where every adult identifies as an instructional leader with the power to work toward that vision.",
+          photo:
+            "https://drive.google.com/file/d/1D2twkuuyhN2vIhjDh1WLilp76xkDbt0H/view?usp=sharing",
+        },
+        {
+          partnership:
+            "Oakland Unified School District Linked Learning Department",
+          address: "1011 Union St, Oakland, CA 94607",
+          story:
+            "Stronger teacher-teams mean more effective Career Technical Education (CTE) programs at every one of Oakland Unified School District's 19 high schools. Lead by Learning provides Design Team and coaching support to better serve Oakland high school Pathway teachers and students, by deepening the collaboration between all CTE Teams, district-wide, to increase students' college and career access. CTE Coaches, along with Lead by Learning's facilitation, are the Design Team tasked with developing and launching year-long professional development to support team-building, rigor, and leadership capacity for the district's CTE Lead Teachers. Now in its second year, the Design Team centers the learning of CTE Lead Teachers who have reported how professionalizing and supportive the Professional Development has been in creating stronger, student-centered CTE Teams.",
+          photo:
+            "https://drive.google.com/file/d/1SaqYDJUz6Dpw_JgEBro-PjWBQbDjXNdA/view?usp=sharing",
+        },
+        {
+          partnership: "Madison Park High School Academy",
+          address: "400 Capistrano Dr, Oakland, CA 94603",
+          story:
+            "How can an instructional leadership team (ILT) effectively design and plan teacher-led professional development (PD) rooted in inquiry? With support from Lead by Learning, the Madison Park Academy's ILT designs staff professional development that is connected to their school-wide professional learning goal to increase student talk in the classroom. Lead by Learning helps the ILT to analyze data (i.e: department meeting feedback responses, classroom observations, etc.) to understand how to better support their departments and distribute leadership to co-facilitate upcoming PDs to ensure alignment school-wide.",
+          photo:
+            "https://drive.google.com/file/d/1eYvvCXYX7PCjkY60iD-cyG4rUeSujwP0/view?usp=sharing",
+        },
+        {
+          partnership: "Tamalpais Union High School District",
+          address: "395 Doherty Dr., Larkspur, CA 94939-0605",
+          story:
+            "When a district sees awesome academic results for its white students and abysmal results for Black, Indigenous, People of Color (BIPOC) students, there is a need for coherent, system-wide change. Tamalpais Union High School District (TUHSD) in Northern California's Marin County is approaching this dilemma through building a district wide culture of rigorous instructional inquiry. By incorporating multiple equity initiatives, including instructional rounds with aligned problems of practice, focal student work and reflective learning amongst teachers, site leadership team development and learning, TUHSD, in partnership with Lead by Learning, is building an inquiry culture that centers students’ experience. Utilizing current thinking around adult learning, data collection and analysis, TUHSD continues to build its capacity to serve its most marginalized students.",
+          photo:
+            "https://drive.google.com/file/d/1KRrQAODAQTUYyu8deeI0A_CRB9M3SPKw/view?usp=sharing",
+        },
+        {
+          partnership: "Halkin Elementary School",
+          address: "1300 Williams St, San Leandro, CA 94577",
+          story:
+            "How does a holistic focus on multilingual learners lift up all students at Halkin Elementary School? This is a key question that Lead by Learning has supported the Design and Instructional Lead Teams  to grapple with to support their adult and student learners. Located in San Leandro Unified School District, and in their fourth year of partnership with Lead by Learning, both Halkin Elementary administrators and teacher-leaders have been building a powerful learning culture that values vulnerability and rigor when analyzing classroom-based data to support  student success. As a result of this multi-year collaboaration, Halkin Elementary educators are consistent in pursuing a singular theory of action: If we pay particular attention to Halkin students who are developing their biliteracy (specifically those identified as English Learners) by building foundational literacy skills (phonics, decoding, comprehension, encoding, and meaning making), then we will see an increase in student engagement over the course of the school year, as measured by academic performance in multiple content areas.",
+          photo:
+            "https://drive.google.com/file/d/1rrlAEGJlYieVyU91THdttKBClwnUGvqB/view?usp=sharing",
+        },
+        {
+          partnership:
+            "Oakland Unified School District Library Leadership Team",
+          address: "1011 Union St, Oakland, CA 94607",
+          story:
+            "What does it take to build thriving school libraries across an entire district? In Oakland Unified School District, over 60 library staff come together from different school sites each month to strengthen their libraries and practice. For five years, Lead by Learning has partnered with the district’s Library Leadership Team, composed of library staff members, to build their leadership to lead professional learning. Together they are growing in their skills of adult facilitation, collecting, analyzing, and using student and adult data, and analyzing district-wide impact. This year, their shared focus is on creating a culture of independent reading district-wide, expanding both print and digital circulation so students can choose what, when, and how they read.",
+          photo:
+            "https://drive.google.com/file/d/1Uk_5rKXTHVVskiaHSmDNgRA6J-aDVu5Q/view?usp=sharing",
+        },
+        {
+          partnership: "SPG Therapy",
+          address: "2021 Ygnacio Valley Rd, Walnut Creek, CA 94598",
+          story:
+            "SPG Therapy’s Speech-Language Pathology leaders are working hard to navigate change, while continuing to be a beacon of support for high-quality practice on the ground in support of students. In partnership with Lead by Learning, these leaders are receiving coaching to build the skills, systems, and confidence needed to guide their teams through transition in ways that are sustainable, scalable, and equitable.",
+          photo:
+            "https://drive.google.com/file/d/1Ur13k-WWZz3zfKcF1hFWXSsmXu5R4pRi/view?usp=sharing",
+        },
+        {
+          partnership: "Hillcrest Elemtnary School",
+          address: "30 Marguerite Dr, Oakland, CA 94618",
+          story:
+            "At Hillcrest Elementary School in Oakland Unified School District, educators are grappling with a big question: How can we support our students to be flexible, courageous, curious, and capable independent learners? Through coaching with Lead by Learning, the administrative team is receiving support to embed inquiry into their monthly professional development so that teachers are exploring their own practice, trying new strategies, and collaborating to improve outcomes for students. By embedding inquiry into their monthly collaboration, they hope to support their educators to feel valued, empowered, and equipped to support students, so that every student can thrive as a courageous, curious, and capable learners.",
+          photo:
+            "https://drive.google.com/file/d/1iYMM_nYOr0Wy_X2U_lQXiaSc3LONBMU8/view?usp=sharing",
+        },
+        {
+          partnership: "Dublin High School",
+          address: "8151 Village Pkwy, Dublin, CA 94568",
+          story:
+            "After 3 years of constructing their PLC model from scratch by evaluating and adapting the systems and structures that allow for teachers to prioritize pedagogy over content, Dublin High School is embarking on their 4th year of partnership with Lead by Learning with the goal of making sure their new teacher-led PLC model remains the standard for Adult Collaboration for many years to come.  Their vision is for their cross-content PLC model to disrupt predictive outcomes for the most marginalized students in their school community, which will eventually change the types of teaching and learning across the site.  Ultimately, Dublin High School will have teacher-led PLCs that continuously use student data to decide on instructional approaches that support the social-emotional and academic growth of their students before they embark on their transition into adulthood.",
+          photo:
+            "https://drive.google.com/file/d/1mp0oDfc6_avAU0S2i5NCSBglbvQdOQeg/view?usp=sharing",
+        },
+        {
+          partnership: "United for Success Academy",
+          address: "2101 35th Ave, Oakland, CA 94601",
+          story:
+            "How can Humanities educators increase student talk? Lead by Learning partners with United for Success Academy, in Oakland Unified School District, Literacy Teacher on Special Assignment (TSA) to co-plan and co-facilitate bi-weekly PLC meetings that guide teachers to improve their practice through high-impact collaboration grounded in inquiry. Determined to promote rigor by increasing student talk in the classroom, teachers are eager to collect and analyze student data, implement new strategies to foster student talk, and work with focal students to assess progress toward their goals.",
+          photo:
+            "https://drive.google.com/file/d/1grjD0482GT2dKlIuYgInUg50iUZgDdmk/view?usp=sharing",
+        },
+        {
+          partnership:
+            "Oakland Unified School District Multi-Tiered Systems of Support Department",
+          address: "1011 Union St, Oakland, CA 94607",
+          story:
+            "How can we cultivate a meaningful space for Oakland educators to strengthen social-emotional learning (SEL) for their students?\nThe 2025-26 SEL Inquiry Group, co-facilitated by Lead by Learning and the OUSD MTSS Team, will bring together the SEL Lead Learners from all OUSD schools  for monthly collaboration and support in understanding school-wide SEL integration to increase student engagement in classrooms. All participants will engage in classroom-based inquiry around an area of their own practice which will inform their site-based responsibilities as a liaison and champion for schoolwide SEL integration at OUSD schools.",
+          photo:
+            "https://drive.google.com/file/d/1ydNIPCLzpI2mv2-flCaYmfuWHCU-Td5g/view?usp=sharing",
+        },
+        {
+          partnership: "Tomales High School",
+          address: "3850 Irvin Rd, Tomales, CA 94971",
+          story:
+            "After a year of engaging in their own inquiry to promote students' agency, empowerment and belonging at school, this group of educator leaders at Tomales High School are now partnering with Lead by Learning to lead monthly collaboration for their staff. By introducing inquiry practices to set goals, reflect on practice, collaborate using public learning, and review and analyze data as a staff, Tomales High School educators are working to improve the outcomes for their students with individualized education plans (IEPs).",
+          photo:
+            "https://drive.google.com/file/d/187Z2QUeGnUpoK_cNAXfxqLUkY6UUEj81/view?usp=sharing",
+        },
+        {
+          partnership: "Cherrylee Elementary",
+          address: "5025 Buffington Rd, El Monte, CA 91732",
+          story:
+            "Many teachers at elementary schools are used to working in grade-level teams, but not necessarily in cross-grade level Professional Learning Communities (PLCs), which is what Lead by Learning is partnering with Cherrylee Elementary this year to explore. As a California Community School, their goal is to create a culture of instructional leadership through the formation of an Instructional Leadership Team (ILT)  who will lead grade-band PLCs. By developing their ILT identity alongside learning the mindsets and practices to guide their peers, Cherrylee Elementary is exploring how to effectively use district-wide assessments to inform their instruction school-wide.",
+          photo:
+            "https://drive.google.com/file/d/1tCux2yUbN00f2u3HtoWSSdb4ikxdQCbR/view?usp=sharing",
+        },
+        {
+          partnership: "De Anza High School",
+          address: "5000 Valley View Rd, Richmond, CA 94803",
+          story:
+            "The Instructional Leadership Team (ILT) at De Anza High School continues to explore how to support  the adults and students at their school to become reflective learners by exploring the intersection between engaging students in rigorous academics and supporting their social-emotional development. Over the course of our 5 year partnership, the ILT has become aware of the need to cultivate their collective efficacy in relation to these two focal areas, as well as striving to have a truly teacher-led ILT.  In response to a number of unpredictable transitions at their school, it has become clear just how important the ILT can be in maintaining consistency and clarity for their school community. This year, they are taking the lead in setting and maintaining school-wide policies and procedures, ensuring that staff and students experience a safe and supportive environment that promotes the success of all students.",
+          photo:
+            "https://drive.google.com/file/d/1TiExXdTNPfKc3Ereq7HNv2gGZysjg7Rv/view?usp=sharing",
+        },
+        {
+          partnership: "Monroe Elementary School",
+          address: "3750 Monterey Blvd, San Leandro, CA 94578",
+          story:
+            "So many schools have initiatives that they work on without ever making significant progress, and it is not from lack of trying. The reality is that school leaders have limited time and resources, so they often have to pick and choose where to focus their energy. This is precisely what happened when it came to Action Research at Monroe. The principal and teacher leaders were bought into the idea and believed it to be a good practice, but just weren't sure about how to make it happen. Over the past 4 years, working with their ILT, Lead by Learning has been able to support them make significant progress. Through ongoing data-gathering and reflection, they identified the need to create smaller collaborative groups that were exclusively focused on Action Research, calling them Investigative Groups, or I-Groups for short. These groups proved to be effective and loved by their entire staff. This year, we continue to develop these groups with an emphasis on deeper learning through Supportive Challenge to increase math proficiency school-wide.",
+          photo:
+            "https://drive.google.com/file/d/15JgoELv2A7wM4ZnDjT5UL8RXkeWgMXEH/view?usp=sharing",
+        },
+        {
+          partnership: "Jefferson Elementary School",
+          address: "14300 Bancroft Ave, San Leandro, CA 94578",
+          story:
+            "There are so many ways to promote distributive leadership and collective efficacy at a school, and this year we are partnering with Jefferson Elementary School in San Leandro Unified School District's new Principal to do just that.  In our Design Team partnership, we will be working with 4 teacher leaders to develop 4 teacher-led collaborative teams that focus on a specific aspect of Jefferson's School Plan for Student Achievement (SPSA). The four teams include the Instructional Leadership Team, the Culture & Climate Team, the Wellness Team, and the Community Engagement Team.",
+          photo:
+            "https://drive.google.com/file/d/10e8yS50edNriZk0AwMUoMNT5A-vWrv4s/view?usp=sharing",
+        },
+        {
+          partnership:
+            "21CSLA Community of Practice: Teacher Leadership During Times of Transition",
+          address: "5000 MacArthur Blvd, Oakland, CA 94613",
+          story:
+            "Too often, teacher leaders are tasked with leading departments, grade-level teams, or PLCs without sufficient support for developing the unique understandings and skills necessary to facilitate learning for colleagues. Teacher Leadership in Times of Transition develops the leadership capacity of established and emerging teacher leaders, with an emphasis on the design and facilitation of powerful adult learning spaces. The program deepens leadership identity while connecting to deeper purpose, vision for equity, and core values. As part of a reflective, robust community of practice, teacher leaders from multiple Bay Area districts will hone their capacity to facilitate collaboration that improves equitable outcomes for students.",
+          photo:
+            "https://drive.google.com/file/d/1ICu6Vj-1qt-pw9h_AXhRMHy_957hpKUk/view",
+        },
+        {
+          partnership:
+            "21CSLA Community of Practice: Literacy Leaders, Library Staff Community of Practice",
+          address: "5000 MacArthur Blvd, Oakland, CA 94613",
+          story:
+            "School-site librarians, as on-campus literacy leaders, are uniquely positioned to impact student learning because they work across disciplines and grade levels and are the heart of literacy and reading for their sites. Often singletons at their school sites, they find themselves isolated from colleagues and having very few spaces to collaborate. For library staff and their libraries to thrive, these literacy leaders need spaces to come together as professionals to share best practices, be in community, and conduct inquiry to improve their practices. The Librarian Community of Practice convenes librarian leaders across sites and districts monthly to support their leadership identity development and increase their capacity to influence literacy achievement for all students.",
+          photo:
+            "https://drive.google.com/file/d/1UUZnTLkpQuFUfOLEmndcdVwJt-pS5hzu/view",
+        },
+        {
+          partnership: "AI Empowerment in Education",
+          address: "5000 MacArthur Blvd, Oakland, CA 94613",
+          story:
+            "Every educator is navigating questions about AI in the classroom—but without educator voices leading the conversation, schools risk adopting solutions that don't work. Lead by Learning launched \"AI Together,\" a pilot initiative to develop replicable models for community-centered AI integration that starts from a clear premise: effective AI use only happens when we deeply understand the instructional challenges we're trying to solve. The pilot creates space for educators to explore how AI can support more nuanced, student-centered instruction while helping students use AI for academic support without compromising their critical thinking. The goal is straightforward: amplifying educator expertise to ensure AI integration in schools is responsible, equitable, and genuinely effective.",
+          photo:
+            "https://weleadbylearning.org/wp-content/uploads/2025/10/AI-Together-3-scaled-1482x0-c-default.jpg",
+        },
+        {
+          partnership: "Oakland Adult & Career Education",
+          address: "7929 Ney Avenue, Oakland, CA 94605",
+          story:
+            "Adult education leaders are navigating the complex work of supporting learner persistence in programs where students balance school with work, family, and life responsibilities. While persistence is often framed as an individual learner trait, Oakland Adult and Career Education educators are asking a deeper question: What does learner persistence mean to us, and how do our systems and practices either support or undermine it? In partnership with Lead by Learning, OACE is engaging in Leading from the Inside Out: Adult SEL Essentials, a Lead by Learning workshop series grounded in the belief that persistence grows when adult learners experience autonomy, belonging, competence, and meaning. The goal is to strengthen educator clarity, coherence, and shared language so that adult learners are more likely to stay engaged, feel valued, and persist toward their goals.",
+          photo:
+            "https://drive.google.com/file/d/1lPDCtqmZvgrdqgqwJhFvcUkBdIuHRVYp/view?usp=sharing",
+        }
+      ];
+
+      /* 排序：按 partnership 英文不区分大小写 */
+      DATA.sort((a, b) =>
+        a.partnership.localeCompare(b.partnership, "en", {
+          sensitivity: "base",
+        })
+      );
+
+      /* ------------- 工具：转义 & Drive 源解析（img / thumbnail / iframe） ------------- */
+      function esc(s) {
+        return (s || "")
+          .toString()
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function extractDriveId(u) {
+        if (!u) return "";
+        const s = String(u).trim();
+        const m1 = s.match(/\/file\/d\/([a-zA-Z0-9_-]{10,})/);
+        if (m1) return m1[1];
+        try {
+          const url = new URL(s);
+          const id = url.searchParams.get("id");
+          if (id) return id;
+        } catch {}
+        const m2 = s.match(/[?&]id=([a-zA-Z0-9_-]{10,})/);
+        return m2 ? m2[1] : "";
+      }
+
+      function driveSrc(u) {
+        if (!u || String(u).toLowerCase() === "nan")
+          return { img: "", thumb: "", preview: "", id: "" };
+        const id = extractDriveId(u);
+        if (id) {
+          return {
+            img: `https://drive.google.com/uc?export=view&id=${id}`,
+            thumb: `https://drive.google.com/thumbnail?id=${id}&sz=w1000`,
+            preview: `https://drive.google.com/file/d/${id}/preview`,
+            id,
+          };
+        }
+        if (/^https?:\/\//i.test(u))
+          return { img: u, thumb: "", preview: "", id: "" };
+        return { img: "", thumb: "", preview: "", id: "" };
+      }
+
+      // 统一处理图片失败：先换 thumbnail，再换 iframe（仅弹窗传了 preview），最后显示占位
+      function driveImgError(img) {
+        const thumb = img.dataset.thumb || "";
+        const preview = img.dataset.preview || "";
+        if (!img.dataset.f1 && thumb) {
+          img.dataset.f1 = "1";
+          img.src = thumb;
+          return;
+        }
+        if (!img.dataset.f2 && preview) {
+          img.dataset.f2 = "1";
+          const wrap = img.parentNode;
+          img.remove();
+          const ifr = document.createElement("iframe");
+          ifr.src = preview;
+          ifr.loading = "lazy";
+          ifr.allow = "autoplay";
+          ifr.style.width = "100%";
+          ifr.style.height = "100%";
+          ifr.style.border = "0";
+          wrap.appendChild(ifr);
+          return;
+        }
+        img.style.display = "none";
+        const w = img.parentNode;
+        w.innerHTML = '<div style="font-size:22px;text-align:center">📍</div>';
+      }
+
+      /* ----------------- 地图 & UI ----------------- */
+      const GEO_KEY = "partnerships_geocache_v1";
+      const geoCache = JSON.parse(localStorage.getItem(GEO_KEY) || "{}");
+      function saveCache() {
+        localStorage.setItem(GEO_KEY, JSON.stringify(geoCache));
+      }
+
+      async function geocode(address) {
+        if (geoCache[address]) return geoCache[address];
+        const url =
+          "https://nominatim.openstreetmap.org/search?format=json&q=" +
+          encodeURIComponent(address + ", California, USA") +
+          "&limit=1&addressdetails=0";
+        const resp = await fetch(url, { headers: { "Accept-Language": "en" } });
+        if (!resp.ok) throw new Error("Geocoding failed");
+        const arr = await resp.json();
+        if (arr && arr.length) {
+          const lat = parseFloat(arr[0].lat),
+            lon = parseFloat(arr[0].lon);
+          const res = { lat, lon };
+          geoCache[address] = res;
+          saveCache();
+          return res;
+        } else {
+          throw new Error("No result");
+        }
+      }
+
+      const map = L.map("map", {
+        scrollWheelZoom: true,
+        preferCanvas: true,
+      }).setView([36.7783, -119.4179], 6);
+
+      L.tileLayer(
+        "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+        {
+          attribution: "&copy; OpenStreetMap & CARTO",
+          subdomains: "abcd",
+          maxZoom: 19,
+        }
+      ).addTo(map);
+
+      const loader = document.getElementById("loader");
+      function setLoading(on) {
+        loader.classList.toggle("show", !!on);
+      }
+
+      const markers = [];
+      const list = document.getElementById("list");
+
+      function markerPopupHTML(d) {
+        const { img, thumb, preview } = driveSrc(d.photo);
+        const imgTag = img
+          ? `<div class="p-photo">
+             <img src="${esc(img)}"
+                  alt="Photo of ${esc(d.partnership)}"
+                  loading="lazy" decoding="async"
+                  data-thumb="${esc(thumb)}"
+                  data-preview="${esc(preview)}"
+                  onerror="driveImgError(this)"/>
+           </div>`
+          : "";
+        return `
+        <div class="popup">
+          ${imgTag}
+          <h3 class="p-title">${esc(d.partnership)}</h3>
+          <div class="p-story">${esc(d.story)}</div>
+        </div>
+      `;
+      }
+
+      function cardHTML(d, idx) {
+        const { img, thumb } = driveSrc(d.photo);
+        const addr = d.address
+          ? `<div class="address">${esc(d.address)}</div>`
+          : "";
+        return `
+        <article class="card" data-idx="${idx}" role="listitem" tabindex="0" aria-label="Open ${esc(
+          d.partnership
+        )} on map">
+          <div class="thumb">
+            ${
+              img
+                ? `<img src="${esc(img)}"
+                          alt="Photo of ${esc(d.partnership)}"
+                          loading="lazy" decoding="async"
+                          data-thumb="${esc(thumb)}"
+                          data-preview=""
+                          onerror="driveImgError(this)"/>`
+                : ""
+            }
+            <span class="fallback" style="display:${
+              img ? "none" : "inline-block"
+            };font-size:22px;">📍</span>
+          </div>
+          <div class="meta">
+            <h3>${esc(d.partnership)}</h3>
+            <div class="story">${esc(d.story)}</div>
+            ${addr}
+          </div>
+        </article>
+      `;
+      }
+
+      function renderList(items) {
+        list.innerHTML = items.map((d, i) => cardHTML(d, i)).join("");
+        list.querySelectorAll(".card").forEach((el) => {
+          el.addEventListener("click", () =>
+            focusItem(parseInt(el.dataset.idx, 10))
+          );
+          el.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") focusItem(parseInt(el.dataset.idx, 10));
+          });
+        });
+      }
+
+      function focusItem(i) {
+        const m = markers[i];
+        if (!m) return;
+        map.setView(m.marker.getLatLng(), Math.max(map.getZoom(), 11), {
+          animate: true,
+        });
+        m.marker.openPopup();
+      }
+
+      const searchInput = document.getElementById("searchInput");
+      searchInput.addEventListener("input", () => {
+        const q = searchInput.value.trim().toLowerCase();
+        const filtered = DATA.filter((d) => {
+          const hay = (
+            d.partnership +
+            " " +
+            d.address +
+            " " +
+            d.story
+          ).toLowerCase();
+          return hay.includes(q);
+        });
+        renderList(filtered);
+        list.querySelectorAll(".card").forEach((el, uiIdx) => {
+          const filteredIdx = DATA.indexOf(filtered[uiIdx]);
+          el.dataset.idx = filteredIdx;
+        });
+      });
+
+      renderList(DATA);
+
+      const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
+
+      async function initMarkers() {
+        setLoading(true);
+        for (let i = 0; i < DATA.length; i++) {
+          const d = DATA[i];
+          try {
+            const g = await geocode(d.address);
+            const marker = L.marker([g.lat, g.lon]).addTo(map);
+            marker.bindPopup(markerPopupHTML(d));
+            marker.on("click", () => {
+              const cards = list.querySelectorAll(".card");
+              const idxInList = Array.from(cards).findIndex(
+                (c) => parseInt(c.dataset.idx, 10) === i
+              );
+              if (idxInList >= 0)
+                cards[idxInList].scrollIntoView({
+                  behavior: "smooth",
+                  block: "center",
+                });
+            });
+            markers[i] = { id: i, marker, data: d };
+          } catch (err) {
+            console.warn("Geocode failed for", d.address, err);
+          }
+          await sleep(250);
+        }
+        setLoading(false);
+      }
+
+      initMarkers();
+    </script>
+  </body>
+</html>
